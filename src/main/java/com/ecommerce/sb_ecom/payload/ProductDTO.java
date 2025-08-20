@@ -1,19 +1,13 @@
-package com.ecommerce.sb_ecom.model;
+package com.ecommerce.sb_ecom.payload;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Product {
-
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+public class ProductDTO {
     private Long productId;
     private String productName;
     private String Image;
@@ -22,9 +16,4 @@ public class Product {
     private double price;
     private double discount;
     private double specialPrice;
-
-    @ManyToOne
-    @JoinColumn(name = "categoryId")
-    private Category category;
-
 }
