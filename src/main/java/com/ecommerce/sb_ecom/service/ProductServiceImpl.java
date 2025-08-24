@@ -7,19 +7,19 @@ import com.ecommerce.sb_ecom.payload.ProductDTO;
 import com.ecommerce.sb_ecom.payload.ProductResponse;
 import com.ecommerce.sb_ecom.repositories.CategoryRepository;
 import com.ecommerce.sb_ecom.repositories.ProductRepository;
+import jakarta.validation.Valid;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class ProductServiceImpl implements ProductService{
@@ -42,16 +42,16 @@ public class ProductServiceImpl implements ProductService{
 
 
     @Override
-    public ProductDTO addProduct(Product product, Long categoryId) {
+    public ProductDTO addProduct(@Valid ProductDTO product, Long categoryId) {
 
         Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
+        Product addProduct = modelMapper.map(product, Product.class);
+        addProduct.setImage("default.png");
+        addProduct.setCategory(category);
+        double specialPrice = addProduct.getPrice() - ((addProduct.getDiscount() * 0.01) * addProduct.getPrice());
+        addProduct.setSpecialPrice(specialPrice);
 
-        product.setImage("default.png");
-        product.setCategory(category);
-        double specialPrice = product.getPrice() - ((product.getDiscount() * 0.01) * product.getPrice());
-        product.setSpecialPrice(specialPrice);
-
-        Product savedProduct = productRepository.save(product);
+        Product savedProduct = productRepository.save(addProduct);
 
         return modelMapper.map(savedProduct, ProductDTO.class);
 
@@ -61,9 +61,12 @@ public class ProductServiceImpl implements ProductService{
     }
 
     @Override
-    public ProductResponse getAllProducts() {
+    public ProductResponse getAllProducts(Integer pageNumber, Integer pageSize, String sortById, String sortOrder) {
 
-        List<Product> productList= productRepository.findAll();
+        Sort sortOrderBy = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortById).ascending() : Sort.by(sortById).descending();
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, sortOrderBy);
+
+        Page<Product> productList = productRepository.findAll(pageable);
 
         List<ProductDTO> productResponseList = productList.stream()
                 .map(product -> modelMapper.map(product, ProductDTO.class))
@@ -71,23 +74,37 @@ public class ProductServiceImpl implements ProductService{
 
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(productResponseList);
-
+        productResponse.setPageNumber(productList.getNumber());
+        productResponse.setPageSize(productList.getSize());
+        productResponse.setTotalElements(productList.getTotalElements());
+        productResponse.setTotalPages(productList.getTotalPages());
+        productResponse.setLastPage(productList.isLast());
         return productResponse;
 
 
     }
 
     @Override
-    public ProductResponse searchByCategory(Long categoryId) {
+    public ProductResponse searchByCategory(Long categoryId, Integer pageNumber, Integer pageSize, String sortById, String sortOrder) {
         Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new ResourceNotFoundException("Category", "CategoryId", categoryId));
+
+        Sort sortOrderBy = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortById).ascending() : Sort.by(sortById).descending();
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, sortOrderBy);
+
+        Page<Product> productList = productRepository.findAll(pageable);
 
         List<Product> productListByCat = productRepository.findByCategoryOrderByPrice(category);
         List<ProductDTO> productDTOList = productListByCat.stream().map(Product -> modelMapper.map(Product, ProductDTO.class)).toList();
 
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(productDTOList);
-
+        productResponse.setPageNumber(productList.getNumber());
+        productResponse.setPageSize(productList.getSize());
+        productResponse.setTotalElements(productList.getTotalElements());
+        productResponse.setTotalPages(productList.getTotalPages());
+        productResponse.setLastPage(productList.isLast());
         return productResponse;
+
     }
 
     @Override
